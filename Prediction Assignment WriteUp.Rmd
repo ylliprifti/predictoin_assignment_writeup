@@ -1,0 +1,152 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Ylli Prifti"
+date: "10 July 2017"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Dev/R/Machine Learning/Project")
+
+#install.packages("https://togaware.com/access/rattle_5.0.14.tar.gz", repos=NULL, type="source")
+
+```
+## Introduction
+#### (From coursera assignment)
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+### Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+### Getting the data
+We will download the data local if not present and will load data from local storage for efficency
+```{r gettingdata}
+trainingUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingUrl  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainingfile <- "trainingdata.csv"
+testingfile  <- "testingdata.csv"
+if(!file.exists(trainingfile))
+  download.file(trainingUrl, trainingfile)
+if(!file.exists(testingfile))
+  download.file(testingUrl, testingfile)
+trainingdata <- read.csv(trainingfile, na.strings=c("NA", "#DIV/0!"))
+testingdata <- read.csv(testingfile, na.strings=c("NA", "#DIV/0!"))
+
+dim(trainingdata)
+dim(testingdata)
+
+```
+
+## Cleaning and cleansing the data
+Now that the data have been loaded in our local datasets we decide to remove empty cells and unwanted information.
+We are going to remove username information and time stamps.
+We are going to remove N/A columns. We are also goint to remove any invariant columns (where the value doesn't change.)
+```{r cleandata, message=F, results='hide'}
+library(dplyr)
+trainingdata$user_name <- NULL
+trainingdata$X  <- NULL
+
+testingdata$user_name <- NULL
+testingdata$X <- NULL
+
+trainingdata <- select(trainingdata, -contains("timestamp"))
+testingdata <- select(testingdata, -contains("timestamp"))
+
+columnnames <- sapply(trainingdata, function(x) all(is.na(x) || is.null(x)))
+
+training <- trainingdata[, !columnnames]
+testing <- testingdata[, !columnnames]
+
+dim(training)
+dim(testing)
+
+```
+## Random Forest 
+
+Based on lectures and the type of data we are dealing with, we expect Random Forest to be performing good so we try RF first.
+
+The same training and testing partition will be used from all models. 
+
+We will start by creating the two sets for training and testing.
+```{r preparation}
+library(caret)
+library(randomForest)
+set.seed(9999)
+inTraining <- createDataPartition(training$classe, p=0.7, list=F)
+trainingPart <- training[inTraining, ]
+testingPart <- training[-inTraining, ]
+
+dim(trainingPart)
+dim(testingPart)
+
+
+```
+
+Next step, we want to train a Random Forest network using "trainingPart", then test the prediction performance using "testingPart". We will then evaluate the accuracy and move to the next model.
+
+
+```{r runrandomforest}
+
+#rf <- train(classe ~ ., data = trainingPart, method = 'rf', verbose = T, allowParallel = T)
+rf <- randomForest(classe ~ . , data=trainingPart, importance=TRUE, ntree=500, na.action = na.roughfix, allowParallel = T)
+
+rf
+
+p <- predict(rf, newdata = testingPart)
+
+cm <- confusionMatrix(p, testingPart$classe)
+
+cm
+
+plot(cm$table, col = cm$byClass, main = paste("Confusion Matrix Visualization"))
+
+
+```
+
+### Overall accuracy for Random Forest is `r  cm$overall["Accuracy"] `
+
+
+## Decision Tree
+
+```{r decisiontree}
+library(rpart)
+library(rpart.plot)
+#library(rattle)
+dt <- rpart(classe ~ ., data=trainingPart)
+
+rpart.plot(dt)
+
+p <- predict(dt, newdata = testingPart, type="class")
+
+cm <- confusionMatrix(p, testingPart$classe)
+
+cm
+
+plot(cm$table, col = cm$byClass, main = paste("Confusion Matrix Visualization"))
+
+
+```
+
+### Overall accuracy for Decision Trees is `r  cm$overall["Accuracy"] `
+
+Random Forest is far better than decision trees.
+
+## Running random forest with the test data
+
+
+```{r finalmodel}
+
+### Fix not matching columns 
+common <- intersect(names(training), names(testing))
+for (p in common) { if (class(training[[p]]) == "factor") { levels(testing[[p]]) <- levels(training[[p]]) } }
+### End Fix 
+
+testing$classe <- predict(rf, newdata = testing)
+testing$classe
+
+```
+
