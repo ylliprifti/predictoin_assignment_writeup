@@ -2,11 +2,13 @@
 title: "Prediction Assignment Writeup"
 author: "Ylli Prifti"
 date: "10 July 2017"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("~/Dev/R/Machine Learning/Project")
+setwd("C:/Dev/github/predictoin_assignment_writeup")
 
 #install.packages("https://togaware.com/access/rattle_5.0.14.tar.gz", repos=NULL, type="source")
 
@@ -25,6 +27,9 @@ The data for this project come from this source: http://groupware.les.inf.puc-ri
 ### Getting the data
 We will download the data local if not present and will load data from local storage for efficency
 ```{r gettingdata}
+
+starttime <- Sys.time()
+
 trainingUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 testingUrl  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 trainingfile <- "trainingdata.csv"
@@ -147,6 +152,12 @@ for (p in common) { if (class(training[[p]]) == "factor") { levels(testing[[p]])
 
 testing$classe <- predict(rf, newdata = testing)
 testing$classe
+
+endtime <- Sys.time()
+
+endtime - starttime
+
+endtime
 
 ```
 
