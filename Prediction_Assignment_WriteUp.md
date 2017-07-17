@@ -330,6 +330,14 @@ endtime - starttime
 ```
 
 ```
-## Time difference of 6.835971 mins
+## Time difference of 6.713028 mins
+```
+
+```r
+endtime
+```
+
+```
+## [1] "2017-07-17 19:31:20 BST"
 ```
 
